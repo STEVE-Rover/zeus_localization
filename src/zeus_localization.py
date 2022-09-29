@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+from tf import TransformBroadcaster
 from sensor_msgs.msg import Imu
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
@@ -21,11 +22,17 @@ class ZeusLocalization():
         self.latest_heading = None
         self.latest_heading_timestamp = None
 
+        self.base_frame = rospy.get_param("~base_frame", "base_link")
         self.world_frame = rospy.get_param("~world_frame", "map")
+        self.publish_tf = rospy.get_param("~publish_tf", True)
+
+        self.br = None
+        if (self.publish_tf):
+            self.br = TransformBroadcaster()
 
         self.localization_pub = rospy.Publisher('/localization_odom', Odometry, queue_size=1)
-        self.position_sub = rospy.Subscriber('/gnss_map_pose', PoseWithCovarianceStamped, self.positionCB, queue_size=1)
-        self.heading_sub = rospy.Subscriber('/gps_heading', Imu, self.headingCB, queue_size=1)
+        self.position_sub = rospy.Subscriber('/position', PoseWithCovarianceStamped, self.positionCB, queue_size=1)
+        self.heading_sub = rospy.Subscriber('/heading', Imu, self.headingCB, queue_size=1)
 
     def positionCB(self, msg):
         self.mutex.acquire()
@@ -66,7 +73,19 @@ class ZeusLocalization():
             msg.pose.pose.orientation.w = self.latest_heading.orientation.w
             self.localization_pub.publish(msg)
 
+            if (self.publish_tf):
+                self.publishTf(msg)
+
+    def publishTf(self, odom):
+        self.br.sendTransform((odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z),
+            (odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z, odom.pose.pose.orientation.w),
+            rospy.Time.now(),
+            self.base_frame,
+            self.world_frame
+            )
+
     def calculatePositionTwist(self):
+        # TODO: is this needed?
         if self.prev_position != None and self.latest_position != None and \
         self.heading_at_prev_position != None:
             # TODO
