@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="zeus_localization" type="zeus_localization.py" name="zeus_localization">
+        <remap from="position" to="gnss_map_pose"/>
+        <remap from="heading" to="gps_heading"/>
+        <param name="base_frame" value="base_link"/>
+        <param name="world_frame" value="map"/>
+        <param name="publish_tf" value="true"/>
+    </node>
+</launch>
